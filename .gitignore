@@ -1,0 +1,91 @@
+# ============ PYTHON ============
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+.env
+.env.local
+.env.*.local
+
+# ============ NODE / FRONTEND ============
+node_modules/
+dist/
+build/
+.next/
+out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# ============ IDEs & EDITORS ============
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json.example
+.idea/
+.DS_Store
+*.swp
+*.swo
+*~
+.project
+.classpath
+*.code-workspace
+
+# ============ TESTING & COVERAGE ============
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.hypothesis/
+
+# ============ DATABASES ============
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# ============ LOGS & TEMP ============
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+
+# ============ OS SPECIFIC ============
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+.TemporaryItems
+
+# ============ DOCKER ============
+.dockerignore
