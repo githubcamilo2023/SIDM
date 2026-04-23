@@ -30,6 +30,8 @@ ENV/
 env/
 .venv
 .env
+.env.example
+scripts/.env.example
 .env.local
 .env.*.local
 
