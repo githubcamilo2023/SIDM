@@ -83,6 +83,24 @@ const sectionStyle = {
   marginBottom: 14,
 };
 
+// ── TOOLTIP RECHARTS ──────────────────────────────────────────────
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{
+      background:C.card,border:`1px solid ${C.border}`,
+      borderRadius:8,padding:"8px 12px",fontSize:12,
+    }}>
+      <div style={{color:C.white,fontWeight:600,marginBottom:4}}>{label}</div>
+      {payload.map((p,i) => (
+        <div key={i} style={{color:p.color||C.accent}}>
+          {p.name}: {p.value}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // ── COMPONENTE PRINCIPAL ──────────────────────────────────────────
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem("sidm_token"));
@@ -279,7 +297,7 @@ function AppPrincipal({ user, onLogout }) {
   // Cargar médicos al montar
   useEffect(() => {
     if (tab === "nueva") cargarMedicos();
-    if (tab === "historial") cargarHistorial();
+    if (tab === "historial" || tab === "dashboard") cargarHistorial();
   }, [tab]);
 
   const cargarMedicos = async () => {
@@ -449,10 +467,13 @@ function AppPrincipal({ user, onLogout }) {
         <TabButton active={tab==="historial"} onClick={() => { setTab("historial"); }}>
           Historial
         </TabButton>
+        <TabButton active={tab==="dashboard"} onClick={() => { setTab("dashboard"); }}>
+          Dashboard
+        </TabButton>
       </div>
 
       {/* ── CONTENIDO ──────────────────────────────────────────── */}
-      <div style={{padding:"16px",maxWidth:500,margin:"0 auto"}}>
+      <div style={{padding:"16px",maxWidth:600,margin:"0 auto"}}>
         {tab === "nueva" && (
           <>
             {/* Indicador de paso */}
@@ -508,6 +529,10 @@ function AppPrincipal({ user, onLogout }) {
 
         {tab === "historial" && (
           <Historial historial={historial} stats={stats} />
+        )}
+
+        {tab === "dashboard" && (
+          <Dashboard historial={historial} stats={stats} />
         )}
       </div>
     </div>
@@ -1174,6 +1199,207 @@ function Historial({ historial, stats }) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// DASHBOARD (GRÁFICAS)
+// ══════════════════════════════════════════════════════════════════
+function Dashboard({ historial, stats }) {
+  // ── Datos: resultados por tipo ──────────────────────────────────
+  const datosResultados = useMemo(() => {
+    const conteo = {};
+    RESULTADOS.forEach(r => { conteo[r.id] = 0; });
+    historial.forEach(h => { if (conteo[h.resultado] !== undefined) conteo[h.resultado]++; });
+    return RESULTADOS.map(r => ({
+      name: r.label.replace("Visita ", ""),
+      valor: conteo[r.id],
+      color: r.color,
+    }));
+  }, [historial]);
+
+  // ── Datos: pie chart ────────────────────────────────────────────
+  const datosResultadoPie = useMemo(() => {
+    return datosResultados.filter(d => d.valor > 0);
+  }, [datosResultados]);
+
+  // ── Datos: visitas por día ──────────────────────────────────────
+  const datosPorDia = useMemo(() => {
+    const porDia = {};
+    historial.forEach(h => {
+      const f = h.fecha || "Sin fecha";
+      if (!porDia[f]) porDia[f] = { fecha: f, total: 0, exitosas: 0 };
+      porDia[f].total++;
+      if (h.resultado === "exitosa") porDia[f].exitosas++;
+    });
+    return Object.values(porDia).sort((a, b) => a.fecha.localeCompare(b.fecha));
+  }, [historial]);
+
+  // ── Datos: nivel de interés ─────────────────────────────────────
+  const datosInteres = useMemo(() => {
+    const conteo = [0, 0, 0, 0, 0];
+    historial.forEach(h => {
+      if (h.nivel_interes >= 1 && h.nivel_interes <= 5) conteo[h.nivel_interes - 1]++;
+    });
+    return NIVEL_INTERES.map((n, i) => ({
+      name: n.label,
+      valor: conteo[i],
+      color: n.color,
+    }));
+  }, [historial]);
+
+  // ── Datos: visitas por médico ───────────────────────────────────
+  const datosPorMedico = useMemo(() => {
+    const pm = {};
+    historial.forEach(h => {
+      const nom = h.medico_nombre || "Desconocido";
+      if (!pm[nom]) pm[nom] = { name: nom, total: 0, efectivas: 0 };
+      pm[nom].total++;
+      if (h.resultado === "exitosa" || h.resultado === "retraso") pm[nom].efectivas++;
+    });
+    return Object.values(pm).sort((a, b) => b.total - a.total).slice(0, 10);
+  }, [historial]);
+
+  if (!stats) return <div style={{color:C.textSub,textAlign:"center",padding:20}}>Cargando dashboard...</div>;
+
+  if (historial.length === 0) {
+    return (
+      <div style={{textAlign:"center",padding:40,color:C.textSub}}>
+        <div style={{fontSize:40,marginBottom:12}}>📊</div>
+        <div style={{fontSize:16}}>Aún no hay datos para mostrar</div>
+        <div style={{fontSize:13,marginTop:6}}>Registra visitas para ver tus estadísticas</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 style={{fontSize:20,fontWeight:600,margin:"0 0 16px"}}>Dashboard</h2>
+
+      {/* ── KPIs ────────────────────────────────────────────────── */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:20}}>
+        <StatCard label="Total visitas" value={stats.total_visitas} />
+        <StatCard label="Tasa de éxito" value={`${(stats.tasa_exito * 100).toFixed(0)}%`} />
+        <StatCard
+          label="Interés promedio"
+          value={stats.nivel_interes_promedio ? stats.nivel_interes_promedio.toFixed(1) : "—"}
+        />
+        <StatCard
+          label="Espera promedio"
+          value={stats.tiempo_espera_promedio ? `${Math.round(stats.tiempo_espera_promedio)} min` : "—"}
+        />
+      </div>
+
+      {/* ── Barras: resultados por tipo ─────────────────────────── */}
+      <ChartCard title="Resultados por tipo">
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={datosResultados} margin={{top:5,right:10,left:-15,bottom:5}}>
+            <XAxis dataKey="name" tick={{fill:C.textSub,fontSize:11}} axisLine={false} tickLine={false} />
+            <YAxis tick={{fill:C.muted,fontSize:11}} axisLine={false} tickLine={false} allowDecimals={false} />
+            <Tooltip content={<CustomTooltip/>} cursor={{fill:`${C.accent}10`}} />
+            <Bar dataKey="valor" name="Visitas" radius={[4,4,0,0]}>
+              {datosResultados.map((d, i) => (
+                <Cell key={i} fill={d.color} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      {/* ── Pie: distribución ───────────────────────────────────── */}
+      {datosResultadoPie.length > 0 && (
+        <ChartCard title="Distribución de resultados">
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={datosResultadoPie} dataKey="valor" nameKey="name"
+                cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                paddingAngle={3} strokeWidth={0}>
+                {datosResultadoPie.map((d, i) => (
+                  <Cell key={i} fill={d.color} />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip/>} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center",marginTop:4}}>
+            {datosResultadoPie.map(d => (
+              <div key={d.name} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:C.textSub}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:d.color}} />
+                {d.name} ({d.valor})
+              </div>
+            ))}
+          </div>
+        </ChartCard>
+      )}
+
+      {/* ── Línea: visitas por día ──────────────────────────────── */}
+      {datosPorDia.length > 1 && (
+        <ChartCard title="Visitas por día">
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={datosPorDia} margin={{top:5,right:10,left:-15,bottom:5}}>
+              <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+              <XAxis dataKey="fecha" tick={{fill:C.textSub,fontSize:10}} axisLine={false} tickLine={false} />
+              <YAxis tick={{fill:C.muted,fontSize:11}} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip content={<CustomTooltip/>} />
+              <Line type="monotone" dataKey="total" name="Total" stroke={C.accent2}
+                strokeWidth={2} dot={{fill:C.accent2,r:4}} />
+              <Line type="monotone" dataKey="exitosas" name="Exitosas" stroke={C.accent}
+                strokeWidth={2} dot={{fill:C.accent,r:4}} />
+            </LineChart>
+          </ResponsiveContainer>
+          <div style={{display:"flex",gap:16,justifyContent:"center",marginTop:6}}>
+            <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:C.textSub}}>
+              <div style={{width:12,height:3,borderRadius:2,background:C.accent2}} /> Total
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:C.textSub}}>
+              <div style={{width:12,height:3,borderRadius:2,background:C.accent}} /> Exitosas
+            </div>
+          </div>
+        </ChartCard>
+      )}
+
+      {/* ── Barras: nivel de interés ────────────────────────────── */}
+      {datosInteres.some(d => d.valor > 0) && (
+        <ChartCard title="Distribución nivel de interés">
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={datosInteres} margin={{top:5,right:10,left:-15,bottom:5}}>
+              <XAxis dataKey="name" tick={{fill:C.textSub,fontSize:10}} axisLine={false} tickLine={false}
+                angle={-20} textAnchor="end" height={50} />
+              <YAxis tick={{fill:C.muted,fontSize:11}} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip content={<CustomTooltip/>} cursor={{fill:`${C.accent}10`}} />
+              <Bar dataKey="valor" name="Visitas" radius={[4,4,0,0]}>
+                {datosInteres.map((d, i) => (
+                  <Cell key={i} fill={d.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
+
+      {/* ── Barras horizontales: por médico ─────────────────────── */}
+      {datosPorMedico.length > 0 && (
+        <ChartCard title="Visitas por médico">
+          <ResponsiveContainer width="100%" height={Math.max(150, datosPorMedico.length * 45)}>
+            <BarChart data={datosPorMedico} layout="vertical" margin={{top:5,right:10,left:10,bottom:5}}>
+              <XAxis type="number" tick={{fill:C.muted,fontSize:11}} axisLine={false} tickLine={false} allowDecimals={false} />
+              <YAxis type="category" dataKey="name" tick={{fill:C.textSub,fontSize:11}} axisLine={false} tickLine={false} width={120} />
+              <Tooltip content={<CustomTooltip/>} cursor={{fill:`${C.accent}10`}} />
+              <Bar dataKey="total" name="Total" fill={C.accent2} radius={[0,4,4,0]} barSize={14} />
+              <Bar dataKey="efectivas" name="Efectivas" fill={C.accent} radius={[0,4,4,0]} barSize={14} />
+            </BarChart>
+          </ResponsiveContainer>
+          <div style={{display:"flex",gap:16,justifyContent:"center",marginTop:6}}>
+            <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:C.textSub}}>
+              <div style={{width:12,height:6,borderRadius:2,background:C.accent2}} /> Total
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:C.textSub}}>
+              <div style={{width:12,height:6,borderRadius:2,background:C.accent}} /> Efectivas
+            </div>
+          </div>
+        </ChartCard>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
 // COMPONENTES REUTILIZABLES
 // ══════════════════════════════════════════════════════════════════
 function StatCard({ label, value }) {
@@ -1184,6 +1410,20 @@ function StatCard({ label, value }) {
     }}>
       <div style={{fontSize:20,fontWeight:700,color:C.accent}}>{value}</div>
       <div style={{fontSize:12,color:C.textSub,marginTop:2}}>{label}</div>
+    </div>
+  );
+}
+
+function ChartCard({ title, children }) {
+  return (
+    <div style={{
+      background:C.card,border:`1px solid ${C.border}`,
+      borderRadius:10,padding:"14px 10px",marginBottom:14,
+    }}>
+      <div style={{fontSize:14,fontWeight:600,color:C.white,marginBottom:10,paddingLeft:4}}>
+        {title}
+      </div>
+      {children}
     </div>
   );
 }
