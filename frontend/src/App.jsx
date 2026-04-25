@@ -865,24 +865,19 @@ function PasoResultado({
       <div style={sectionStyle}>
         <label style={labelStyle}>Pacientes en sala de espera</label>
         <div style={{display:"flex",gap:6}}>
-          {[
-            { val:"vacio", label:"Vacío" },
-            { val:"1-3",   label:"1-3" },
-            { val:"4-6",   label:"4-6" },
-            { val:"lleno", label:"Lleno" },
-          ].map(op => (
+          {[0,1,2,3,5,10].map(n => (
             <button
-              key={op.val}
-              onClick={() => setPacientesEnSala(pacientesEnSala === op.val ? null : op.val)}
+              key={n}
+              onClick={() => setPacientesEnSala(pacientesEnSala === n ? null : n)}
               style={{
                 flex:1,padding:"8px 0",fontSize:13,
-                background:pacientesEnSala===op.val?`${C.accent2}25`:C.card,
-                border:`1px solid ${pacientesEnSala===op.val?C.accent2:C.border}`,
-                borderRadius:6,color:pacientesEnSala===op.val?C.accent2:C.textSub,
+                background:pacientesEnSala===n?`${C.accent2}25`:C.card,
+                border:`1px solid ${pacientesEnSala===n?C.accent2:C.border}`,
+                borderRadius:6,color:pacientesEnSala===n?C.accent2:C.textSub,
                 cursor:"pointer",transition:"all .15s",
               }}
             >
-              {op.label}
+              {n === 10 ? "10+" : n}
             </button>
           ))}
         </div>
@@ -1050,8 +1045,8 @@ function PasoConfirmacion({
         {espera !== null && espera !== undefined && (
           <ConfirmRow label="Espera" value={ESPERA_OPCIONES.find(e=>e.val===espera)?.label || `${espera} min`} />
         )}
-        {pacientesEnSala && (
-          <ConfirmRow label="Pacientes en sala" value={pacientesEnSala} />
+        {pacientesEnSala !== null && pacientesEnSala !== undefined && (
+          <ConfirmRow label="Pacientes en sala" value={pacientesEnSala >= 10 ? "10+" : pacientesEnSala} />
         )}
         {horaInicioAtencion && (
           <ConfirmRow label="Inicio atención" value={horaInicioAtencion} />
