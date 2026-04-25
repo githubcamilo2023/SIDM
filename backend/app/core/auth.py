@@ -37,7 +37,7 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Token sin usuario")
 
     db = get_supabase()
-    result = db.table("visitadores").select("*").eq("id", user_id).single().execute()
+    result = db.table("visitadores").select("id, nombre, email, laboratorio, rol, activo").eq("id", user_id).single().execute()
     if not result.data:
         raise HTTPException(status_code=401, detail="Visitador no encontrado")
 

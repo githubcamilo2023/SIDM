@@ -14,7 +14,7 @@ async def login(body: LoginRequest):
 
     result = (
         db.table("visitadores")
-        .select("*")
+        .select("id, nombre, email, password_hash, laboratorio, rol, activo")
         .eq("email", body.email)
         .eq("activo", True)
         .single()
