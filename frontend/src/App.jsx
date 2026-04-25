@@ -292,185 +292,185 @@ function AppPrincipal({ user, onLogout }) {
     }
   };
 
-//   const handleEnviarVisita = async () => {
-//     setEnviando(true);
-//     try {
-//       const visitaData = {
-//         medico_id: medicoSeleccionado.id,
-//         consultorio,
-//         hora_llegada: horaLlegada,
-//         canal_contacto: canalContacto,
-//         resultado,
-//         tiempo_espera: espera,
-//         producto,
-//         novedad_categoria: novedadCat,
-//         nota,
-//         prox_visita: proxVisita,
-//         nivel_interes: nivelInteres,
-//         pacientes_en_sala: pacientesEnSala,
-//         hora_inicio_atencion: horaInicioAtencion
-//       };
+  const handleEnviarVisita = async () => {
+    setEnviando(true);
+    try {
+      const visitaData = {
+        medico_id: medicoSeleccionado.id,
+        consultorio,
+        hora_llegada: horaLlegada,
+        canal_contacto: canalContacto,
+        resultado,
+        tiempo_espera: espera,
+        producto,
+        novedad_categoria: novedadCat,
+        nota,
+        prox_visita: proxVisita,
+        nivel_interes: nivelInteres,
+        pacientes_en_sala: pacientesEnSala,
+        hora_inicio_atencion: horaInicioAtencion
+      };
 
-//       const res = await fetch(`${API_URL}/visitas`, {
-//         method: "POST",
-//         headers: {
-//           "Authorization": `Bearer ${token}`,
-//           "Content-Type": "application/json"
-//         },
-//         body: JSON.stringify(visitaData)
-//       });
+      const res = await fetch(`${API_URL}/visitas`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(visitaData)
+      });
 
-//       if (!res.ok) throw new Error("Error guardando visita");
+      if (!res.ok) throw new Error("Error guardando visita");
 
-//       // Reset
-//       setPaso(1);
-//       setMedicoSeleccionado(null);
-//       setConsultorio("");
-//       setResultado(null);
-//       setNivelInteres(null);
-//       setTab("historial");
-//     } catch (err) {
-//       alert("Error al guardar la visita: " + err.message);
-//     } finally {
-//       setEnviando(false);
-//     }
-//   };
-
-//   return (
-//     <div style={{minHeight:"100vh",background:C.bg,color:C.white}}>
-//       {/* Header */}
-//       <div style={{
-//         background:C.card,borderBottom:`1px solid ${C.border}`,
-//         padding:"12px 16px",display:"flex",alignItems:"center",
-//         justifyContent:"space-between"
-//       }}>
-//         <div>
-//           <div style={{fontSize:18,fontWeight:700,color:C.accent}}>SIDM</div>
-//           <div style={{fontSize:12,color:C.textSub}}>{user?.nombre}</div>
-//         </div>
-//         <button onClick={onLogout} style={{
-//           padding:"8px 14px",fontSize:13,background:C.danger,
-//           color:C.white,border:"none",borderRadius:8,cursor:"pointer"
-//         }}>
-//           Salir
-//         </button>
-//       </div>
-
-//       {/* Tabs */}
-//       <div style={{display:"flex",background:C.card,borderBottom:`1px solid ${C.border}`}}>
-//         <TabButton active={tab==="nueva"} onClick={()=>setTab("nueva")}>
-//           Nueva Visita
-//         </TabButton>
-//         <TabButton active={tab==="historial"} onClick={()=>setTab("historial")}>
-//           Historial
-//         </TabButton>
-//       </div>
-
-//       {/* Contenido */}
-//       <div style={{padding:16}}>
-//         {tab === "nueva" && (
-//           <NuevaVisita
-//             paso={paso}
-//             setPaso={setPaso}
-//             medicos={medicos}
-//             medicoSeleccionado={medicoSeleccionado}
-//             setMedicoSeleccionado={setMedicoSeleccionado}
-//             consultorio={consultorio}
-//             setConsultorio={setConsultorio}
-//             horaLlegada={horaLlegada}
-//             setHoraLlegada={setHoraLlegada}
-//             canalContacto={canalContacto}
-//             setCanalContacto={setCanalContacto}
-//             resultado={resultado}
-//             setResultado={setResultado}
-//             espera={espera}
-//             setEspera={setEspera}
-//             producto={producto}
-//             setProducto={setProducto}
-//             novedadCat={novedadCat}
-//             setNovedadCat={setNovedadCat}
-//             nota={nota}
-//             setNota={setNota}
-//             proxVisita={proxVisita}
-//             setProxVisita={setProxVisita}
-//             nivelInteres={nivelInteres}
-//             setNivelInteres={setNivelInteres}
-//             pacientesEnSala={pacientesEnSala}
-//             setPacientesEnSala={setPacientesEnSala}
-//             horaInicioAtencion={horaInicioAtencion}
-//             setHoraInicioAtencion={setHoraInicioAtencion}
-//             enviando={enviando}
-//             onEnviar={handleEnviarVisita}
-//           />
-//         )}
-
-//         {tab === "historial" && (
-//           <Historial historial={historial} stats={stats} />
-//         )}
-//       </div>
-//     </div>
-//   );
-// }
-
-const handleEnviarVisita = async () => {
-  setEnviando(true);
-  try {
-    // Helper: convierte strings vacíos a null
-    const clean = (val) => (val === "" ? null : val);
-
-    const visitaData = {
-      medico_id: medicoSeleccionado.id,
-      consultorio: clean(consultorio),
-      hora_llegada: clean(horaLlegada),           // ← este era el culpable
-      canal_contacto: canalContacto || "sin_aviso",
-      resultado,
-      tiempo_espera: espera,
-      producto: clean(producto),
-      novedad_categoria: novedadCat,
-      nota: clean(nota),
-      prox_visita: clean(proxVisita),
-      nivel_interes: nivelInteres,
-      pacientes_en_sala: pacientesEnSala,
-      hora_inicio_atencion: clean(horaInicioAtencion)  // ← y este también
-    };
-
-    const res = await fetch(`${API_URL}/visitas`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(visitaData)
-    });
-
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || `Error ${res.status}`);
+      // Reset
+      setPaso(1);
+      setMedicoSeleccionado(null);
+      setConsultorio("");
+      setResultado(null);
+      setNivelInteres(null);
+      setTab("historial");
+    } catch (err) {
+      alert("Error al guardar la visita: " + err.message);
+    } finally {
+      setEnviando(false);
     }
+  };
 
-    // Reset
-    setPaso(1);
-    setMedicoSeleccionado(null);
-    setConsultorio("");
-    setHoraLlegada("");
-    setCanalContacto("sin_aviso");
-    setResultado(null);
-    setEspera(null);
-    setProducto("");
-    setNovedadCat(null);
-    setNota("");
-    setProxVisita("");
-    setNivelInteres(null);
-    setPacientesEnSala(null);
-    setHoraInicioAtencion("");
-    setTab("historial");
-  } catch (err) {
-    alert("Error al guardar la visita: " + err.message);
-  } finally {
-    setEnviando(false);
-  }
+  return (
+    <div style={{minHeight:"100vh",background:C.bg,color:C.white}}>
+      {/* Header */}
+      <div style={{
+        background:C.card,borderBottom:`1px solid ${C.border}`,
+        padding:"12px 16px",display:"flex",alignItems:"center",
+        justifyContent:"space-between"
+      }}>
+        <div>
+          <div style={{fontSize:18,fontWeight:700,color:C.accent}}>SIDM</div>
+          <div style={{fontSize:12,color:C.textSub}}>{user?.nombre}</div>
+        </div>
+        <button onClick={onLogout} style={{
+          padding:"8px 14px",fontSize:13,background:C.danger,
+          color:C.white,border:"none",borderRadius:8,cursor:"pointer"
+        }}>
+          Salir
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div style={{display:"flex",background:C.card,borderBottom:`1px solid ${C.border}`}}>
+        <TabButton active={tab==="nueva"} onClick={()=>setTab("nueva")}>
+          Nueva Visita
+        </TabButton>
+        <TabButton active={tab==="historial"} onClick={()=>setTab("historial")}>
+          Historial
+        </TabButton>
+      </div>
+
+      {/* Contenido */}
+      <div style={{padding:16}}>
+        {tab === "nueva" && (
+          <NuevaVisita
+            paso={paso}
+            setPaso={setPaso}
+            medicos={medicos}
+            medicoSeleccionado={medicoSeleccionado}
+            setMedicoSeleccionado={setMedicoSeleccionado}
+            consultorio={consultorio}
+            setConsultorio={setConsultorio}
+            horaLlegada={horaLlegada}
+            setHoraLlegada={setHoraLlegada}
+            canalContacto={canalContacto}
+            setCanalContacto={setCanalContacto}
+            resultado={resultado}
+            setResultado={setResultado}
+            espera={espera}
+            setEspera={setEspera}
+            producto={producto}
+            setProducto={setProducto}
+            novedadCat={novedadCat}
+            setNovedadCat={setNovedadCat}
+            nota={nota}
+            setNota={setNota}
+            proxVisita={proxVisita}
+            setProxVisita={setProxVisita}
+            nivelInteres={nivelInteres}
+            setNivelInteres={setNivelInteres}
+            pacientesEnSala={pacientesEnSala}
+            setPacientesEnSala={setPacientesEnSala}
+            horaInicioAtencion={horaInicioAtencion}
+            setHoraInicioAtencion={setHoraInicioAtencion}
+            enviando={enviando}
+            onEnviar={handleEnviarVisita}
+          />
+        )}
+
+        {tab === "historial" && (
+          <Historial historial={historial} stats={stats} />
+        )}
+      </div>
+    </div>
+  );
 }
-};
+
+// const handleEnviarVisita = async () => {
+//   setEnviando(true);
+//   try {
+//     // Helper: convierte strings vacíos a null
+//     const clean = (val) => (val === "" ? null : val);
+
+//     const visitaData = {
+//       medico_id: medicoSeleccionado.id,
+//       consultorio: clean(consultorio),
+//       hora_llegada: clean(horaLlegada),           // ← este era el culpable
+//       canal_contacto: canalContacto || "sin_aviso",
+//       resultado,
+//       tiempo_espera: espera,
+//       producto: clean(producto),
+//       novedad_categoria: novedadCat,
+//       nota: clean(nota),
+//       prox_visita: clean(proxVisita),
+//       nivel_interes: nivelInteres,
+//       pacientes_en_sala: pacientesEnSala,
+//       hora_inicio_atencion: clean(horaInicioAtencion)  // ← y este también
+//     };
+
+//     const res = await fetch(`${API_URL}/visitas`, {
+//       method: "POST",
+//       headers: {
+//         "Authorization": `Bearer ${token}`,
+//         "Content-Type": "application/json"
+//       },
+//       body: JSON.stringify(visitaData)
+//     });
+
+//     if (!res.ok) {
+//       const errData = await res.json().catch(() => ({}));
+//       throw new Error(errData.detail || `Error ${res.status}`);
+//     }
+
+//     // Reset
+//     setPaso(1);
+//     setMedicoSeleccionado(null);
+//     setConsultorio("");
+//     setHoraLlegada("");
+//     setCanalContacto("sin_aviso");
+//     setResultado(null);
+//     setEspera(null);
+//     setProducto("");
+//     setNovedadCat(null);
+//     setNota("");
+//     setProxVisita("");
+//     setNivelInteres(null);
+//     setPacientesEnSala(null);
+//     setHoraInicioAtencion("");
+//     setTab("historial");
+//   } catch (err) {
+//     alert("Error al guardar la visita: " + err.message);
+//   } finally {
+//     setEnviando(false);
+//   }
+// }
+// };
 
 // ── TAB BUTTON ────────────────────────────────────────────────────
 function TabButton({ active, onClick, children }) {
