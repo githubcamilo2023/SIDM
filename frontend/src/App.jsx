@@ -1,4 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, LineChart, Line, CartesianGrid,
+} from 'recharts';
 
 // ── CONFIGURACIÓN API ─────────────────────────────────────────────
 const API_URL = "https://sidm-production.up.railway.app/api/v1";
