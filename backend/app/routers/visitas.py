@@ -1,11 +1,15 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
-from datetime import datetime, date
+from zoneinfo import ZoneInfo
+from datetime import datetime
 from app.core.auth import get_current_user
+from app.core.config import get_settings
 from app.core.database import get_supabase
 from app.core.spp_engine import actualizar_patron
 from app.schemas.schemas import VisitaCreate, VisitaOut, HistorialStats
 
+logger = logging.getLogger("sidm.router.visitas")
 router = APIRouter(prefix="/visitas", tags=["visitas"])
 
 
@@ -19,7 +23,8 @@ async def registrar_visita(
     Después de guardar, actualiza automáticamente el patrón SPP del médico.
     """
     db = get_supabase()
-    now = datetime.now()
+    tz = ZoneInfo(get_settings().timezone)
+    now = datetime.now(tz)
 
     # Validar nivel de interés solo si el médico atendió
     visitas_con_medico = {"exitosa", "retraso"}
@@ -28,6 +33,19 @@ async def registrar_visita(
             status_code=422,
             detail="El nivel de interés es obligatorio cuando el médico atendió",
         )
+
+    # Validar que el médico existe
+    medico_check = db.table("medicos").select("id, laboratorio").eq("id", body.medico_id).execute()
+    if not medico_check.data:
+        raise HTTPException(status_code=404, detail="Médico no encontrado")
+
+    # Validar acceso por laboratorio
+    user_rol = current_user.get("rol", "visitador")
+    if user_rol not in ("supervisor", "admin"):
+        medico_lab = medico_check.data[0].get("laboratorio")
+        user_lab = current_user.get("laboratorio")
+        if medico_lab and user_lab and medico_lab != user_lab:
+            raise HTTPException(status_code=403, detail="No tienes acceso a este médico")
 
     # Guardar la visita
     visita_data = {
@@ -53,14 +71,25 @@ async def registrar_visita(
     result = db.table("visitas").insert(visita_data).execute()
 
     if not result.data:
+        logger.error("Error al guardar visita: medico=%d visitador=%d",
+                      body.medico_id, current_user["id"])
         raise HTTPException(status_code=500, detail="Error al guardar la visita")
 
     # Actualizar patrón SPP del médico automáticamente
-    actualizar_patron(
-        medico_id=body.medico_id,
-        dia_semana=now.isoweekday(),
-        franja_hora=now.hour,
-        resultado=body.resultado,
+    try:
+        actualizar_patron(
+            medico_id=body.medico_id,
+            dia_semana=now.isoweekday(),
+            franja_hora=now.hour,
+            resultado=body.resultado,
+        )
+    except Exception as e:
+        # No fallar la visita si el patrón no se actualiza
+        logger.error("Error actualizando patrón SPP: %s", e)
+
+    logger.info(
+        "Visita registrada: id=%s medico=%d visitador=%d resultado=%s",
+        result.data[0]["id"], body.medico_id, current_user["id"], body.resultado,
     )
 
     return {
@@ -76,8 +105,8 @@ async def historial_visitador(
     current_user: dict = Depends(get_current_user),
 ):
     """
-    Devuelve el historial completo de visitas del visitador autenticado,
-    enriquecido con el nombre del médico.
+    Devuelve el historial de visitas del visitador autenticado.
+    Solo ve sus propias visitas.
     """
     db = get_supabase()
 
@@ -117,8 +146,8 @@ async def stats_visitador(
     current_user: dict = Depends(get_current_user),
 ):
     """
-    Estadísticas del visitador: tasa de éxito, nivel de interés promedio,
-    tiempo de espera promedio. Estos números van al dashboard del supervisor.
+    Estadísticas del visitador autenticado.
+    Solo ve sus propias stats.
     """
     db = get_supabase()
 
@@ -142,7 +171,6 @@ async def stats_visitador(
         )
 
     exitosas = sum(1 for v in visitas if v["resultado"] == "exitosa")
-
     niveles = [v["nivel_interes"] for v in visitas if v.get("nivel_interes")]
     esperas = [v["tiempo_espera"] for v in visitas if v.get("tiempo_espera")]
 
