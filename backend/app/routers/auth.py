@@ -17,14 +17,13 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, request: Request):
-    # ── Rate limiting por IP + email ──────────────────────────────
-    client_ip = request.client.host if request.client else "unknown"
-    rate_key = f"login:{client_ip}:{body.email}"
+async def login(body: LoginRequest):
+    # ── Rate limiting por email ─────────────────────────────────
+    # No usar IP: Railway proxy asigna IP diferente por request
+    rate_key = f"login:{body.email}"
 
     if not check_rate_limit(rate_key):
-        logger.warning("Login bloqueado por rate limit: ip=%s email=%s",
-                       client_ip, body.email)
+        logger.warning("Login bloqueado por rate limit: email=%s", body.email)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Demasiados intentos. Espera unos minutos.",
