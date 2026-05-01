@@ -18,7 +18,7 @@ _HORA_REGEX = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 # ── AUTH ──────────────────────────────────────────────────────────
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=6, max_length=128)
+    password: str = Field(..., min_length=1, max_length=128)
 
 
 class TokenResponse(BaseModel):
