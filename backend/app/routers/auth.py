@@ -33,22 +33,27 @@ async def login(body: LoginRequest, request: Request):
     record_attempt(rate_key)
 
     db = get_supabase()
-    result = (
-        db.table("visitadores")
-        .select("id, nombre, email, password_hash, laboratorio, rol, activo")
-        .eq("email", body.email)
-        .eq("activo", True)
-        .single()
-        .execute()
-    )
-
-    if not result.data:
+    try:
+        result = (
+            db.table("visitadores")
+            .select("id, nombre, email, password_hash, laboratorio, rol, activo")
+            .eq("email", body.email)
+            .eq("activo", True)
+            .execute()
+        )
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciales incorrectas",
         )
 
-    visitador = result.data
+    if not result.data or len(result.data) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciales incorrectas",
+        )
+
+    visitador = result.data[0]
 
     if not pwd_context.verify(body.password, visitador["password_hash"]):
         raise HTTPException(
