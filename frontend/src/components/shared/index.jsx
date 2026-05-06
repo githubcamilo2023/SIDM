@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { C, fontStack } from '../constants';
+import { C, fontStack } from '../../constants';
 
 // ── ESTILOS BASE ─────────────────────────────────────────────────
 export const inputStyle = {

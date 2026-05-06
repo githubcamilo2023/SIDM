@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { C, fontStack } from '../../constants';
-import AuthService, { API_URL } from '../../services/auth';
-import NuevaVisita from '../visita/NuevaVisita';
-import Historial from '../historial/Historial';
-import Dashboard from '../dashboard/Dashboard';
-import CambiarPassword from '../auth/CambiarPassword';
+import { C, fontStack } from '../constants';
+import AuthService, { API_URL } from '../services/auth';
+import NuevaVisita from '../components/visita/NuevaVisita';
+import Historial from '../components/historial/Historial';
+import Dashboard from '../components/dashboard/Dashboard';
+import CambiarPassword from '../components/auth/CambiarPassword';
 
 export default function AppPrincipal({ user, onLogout, onSessionExpired }) {
   const [tab, setTab] = useState("nueva");
