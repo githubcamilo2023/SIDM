@@ -7,6 +7,7 @@ import Dashboard from '../components/dashboard/Dashboard';
 import CambiarPassword from '../components/auth/CambiarPassword';
 import AdminPanel from '../components/admin/AdminPanel';
 import PerfilMedico from '../components/medicos/PerfilMedico';
+import { SectionTitle } from '../components/shared/index.jsx';
 
 export default function AppPrincipal({ user, onLogout, onSessionExpired }) {
   const isAdmin = user?.rol === "admin" || user?.rol === "supervisor";
