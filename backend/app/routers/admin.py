@@ -21,7 +21,7 @@ async def listar_visitadores(
     db = get_supabase()
     query = (
         db.table("visitadores")
-        .select("id, nombre, email, laboratorio, rol, activo, created_at")
+        .select("id, nombre, email, laboratorio, rol, activo, created_en")
         .eq("activo", True)
     )
 
