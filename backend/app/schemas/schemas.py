@@ -90,6 +90,7 @@ class VisitaOut(BaseModel):
     id: int
     medico_id: int
     medico_nombre: Optional[str] = None
+    visitador_nombre: Optional[str] = None   # ← NUEVO: para vista admin
     consultorio: str
     fecha: str
     hora_llegada: str

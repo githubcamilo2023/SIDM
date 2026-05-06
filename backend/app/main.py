@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import get_settings
-from app.routers import auth, medicos, visitas
+from app.routers import auth, medicos, visitas, admin   # ← NUEVO
 
 # ── LOGGING ───────────────────────────────────────────────────────
 logging.basicConfig(
@@ -19,7 +19,7 @@ settings = get_settings()
 app = FastAPI(
     title="SIDM API",
     description="Sistema de Inteligencia de Disponibilidad Médica — Backend",
-    version="0.2.0",
+    version="0.3.0",                                     # ← bump version
     docs_url="/docs" if settings.app_env == "development" else None,
     redoc_url="/redoc" if settings.app_env == "development" else None,
 )
@@ -62,11 +62,12 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(auth.router,    prefix="/api/v1")
 app.include_router(medicos.router, prefix="/api/v1")
 app.include_router(visitas.router, prefix="/api/v1")
+app.include_router(admin.router,   prefix="/api/v1")   # ← NUEVO
 
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "sistema": "SIDM API v0.2.0"}
+    return {"status": "ok", "sistema": "SIDM API v0.3.0"}
 
 
 @app.get("/health")
