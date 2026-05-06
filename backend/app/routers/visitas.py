@@ -103,6 +103,7 @@ async def registrar_visita(
 async def historial_visitador(
     limite: int = Query(50, ge=1, le=200),
     current_user: dict = Depends(get_current_user),
+    medico_id: Optional[int] = Query(None, description="Filtrar por médico específico"),  # ← NUEVO
 ):
     """
     Devuelve el historial de visitas del visitador autenticado.
@@ -110,14 +111,16 @@ async def historial_visitador(
     """
     db = get_supabase()
 
-    result = (
+    query = (
         db.table("visitas")
         .select("*, medicos(nombre)")
         .eq("visitador_id", current_user["id"])
-        .order("creado_en", desc=True)
-        .limit(limite)
-        .execute()
     )
+
+    if medico_id:
+        query = query.eq("medico_id", medico_id)
+
+    result = query.order("creado_en", desc=True).limit(limite).execute()
 
     visitas = []
     for v in (result.data or []):
