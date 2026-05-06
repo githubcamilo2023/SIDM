@@ -1,17 +1,17 @@
 const API_URL = import.meta.env.VITE_API_URL || "https://sidm-production.up.railway.app/api/v1";
 
 const AuthService = {
-  getAccessToken: () => sessionStorage.getItem("sidm_access"),
-  getRefreshToken: () => sessionStorage.getItem("sidm_refresh"),
+  getAccessToken: () => localStorage.getItem("sidm_access"),
+  getRefreshToken: () => localStorage.getItem("sidm_refresh"),
 
   setTokens: (access, refresh) => {
-    sessionStorage.setItem("sidm_access", access);
-    if (refresh) sessionStorage.setItem("sidm_refresh", refresh);
+    localStorage.setItem("sidm_access", access);
+    if (refresh) localStorage.setItem("sidm_refresh", refresh);
   },
 
   clearTokens: () => {
-    sessionStorage.removeItem("sidm_access");
-    sessionStorage.removeItem("sidm_refresh");
+    localStorage.removeItem("sidm_access");
+    localStorage.removeItem("sidm_refresh");
   },
 
   refreshAccessToken: async () => {
@@ -25,7 +25,7 @@ const AuthService = {
       });
       if (!res.ok) return null;
       const data = await res.json();
-      sessionStorage.setItem("sidm_access", data.access_token);
+      localStorage.setItem("sidm_access", data.access_token);
       return data.access_token;
     } catch { return null; }
   },
