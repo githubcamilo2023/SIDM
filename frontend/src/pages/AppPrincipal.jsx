@@ -6,6 +6,7 @@ import Historial from '../components/historial/Historial';
 import Dashboard from '../components/dashboard/Dashboard';
 import CambiarPassword from '../components/auth/CambiarPassword';
 import AdminPanel from '../components/admin/AdminPanel';
+import PerfilMedico from '../components/medicos/PerfilMedico';
 
 export default function AppPrincipal({ user, onLogout, onSessionExpired }) {
   const isAdmin = user?.rol === "admin" || user?.rol === "supervisor";
@@ -13,6 +14,7 @@ export default function AppPrincipal({ user, onLogout, onSessionExpired }) {
   const [tab, setTab] = useState("nueva");
   const [showMenu, setShowMenu] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [medicoPerfilActivo, setMedicoPerfilActivo] = useState(null);
 
   // Estado de médicos y visitas
   const [medicos, setMedicos] = useState([]);
@@ -62,7 +64,7 @@ export default function AppPrincipal({ user, onLogout, onSessionExpired }) {
   }, [apiFetch]);
 
   useEffect(() => {
-    if (tab === "nueva") cargarMedicos();
+    if (tab === "nueva" || tab === "medicos") cargarMedicos();
     if (tab === "historial" || tab === "dashboard") cargarHistorial();
   }, [tab, cargarMedicos, cargarHistorial]);
 
@@ -98,9 +100,32 @@ export default function AppPrincipal({ user, onLogout, onSessionExpired }) {
 
   if (showChangePassword) return <CambiarPassword apiFetch={apiFetch} onBack={() => setShowChangePassword(false)} onLogout={onLogout} />;
 
+  // ── Si hay un médico seleccionado para ver perfil ───────────
+  if (medicoPerfilActivo) {
+    return (
+      <div style={{ minHeight: "100vh", background: C.bg, color: C.textMain, fontFamily: fontStack }}>
+        {/* HEADER simplificado */}
+        <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "0 16px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 20, boxShadow: "0 1px 3px rgba(15,23,42,0.05)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.03em", background: C.gradientPrimary, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontFamily: "'Space Grotesk', sans-serif" }}>SIDM</span>
+            <span style={{ fontSize: 13, color: C.muted, borderLeft: `1px solid ${C.border}`, paddingLeft: 10 }}>Perfil médico</span>
+          </div>
+        </div>
+        <div style={{ padding: "16px", maxWidth: 600, margin: "0 auto" }}>
+          <PerfilMedico
+            medico={medicoPerfilActivo}
+            apiFetch={apiFetch}
+            onBack={() => setMedicoPerfilActivo(null)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // ── TABS dinámicos según rol ────────────────────────────────
   const tabs = [
     { id: "nueva", label: "Nueva visita", icon: "+" },
+    { id: "medicos", label: "Médicos", icon: "🩺" },
     { id: "historial", label: "Historial", icon: "📋" },
     { id: "dashboard", label: "Dashboard", icon: "📊" },
   ];
@@ -186,10 +211,89 @@ export default function AppPrincipal({ user, onLogout, onSessionExpired }) {
             />
           </>
         )}
+
+        {tab === "medicos" && (
+          <ListaMedicos medicos={medicos} onVerPerfil={setMedicoPerfilActivo} />
+        )}
+
         {tab === "historial" && <Historial historial={historial} stats={stats} />}
         {tab === "dashboard" && <Dashboard historial={historial} stats={stats} />}
         {tab === "admin" && isAdmin && <AdminPanel apiFetch={apiFetch} />}
       </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// LISTA DE MÉDICOS (tab dedicado)
+// ══════════════════════════════════════════════════════════════════
+function ListaMedicos({ medicos, onVerPerfil }) {
+  const [buscar, setBuscar] = useState("");
+  const filtrados = medicos.filter(m =>
+    m.nombre.toLowerCase().includes(buscar.toLowerCase()) ||
+    (m.especialidad || "").toLowerCase().includes(buscar.toLowerCase()) ||
+    (m.zona || "").toLowerCase().includes(buscar.toLowerCase())
+  );
+
+  return (
+    <div>
+      <SectionTitle>Mis médicos</SectionTitle>
+      <input
+        type="text"
+        placeholder="Buscar por nombre, especialidad o zona..."
+        value={buscar}
+        onChange={e => setBuscar(e.target.value)}
+        style={{
+          width: "100%", padding: "11px 14px", fontSize: 14,
+          fontFamily: fontStack, background: C.white,
+          border: `1.5px solid ${C.border}`, borderRadius: 10,
+          color: C.textMain, outline: "none", boxSizing: "border-box",
+          marginBottom: 14, transition: "border-color 0.2s",
+        }}
+        onFocus={e => e.target.style.borderColor = C.action}
+        onBlur={e => e.target.style.borderColor = C.border}
+      />
+      <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>
+        {filtrados.length} médicos · Toca para ver perfil
+      </div>
+      {filtrados.map(m => {
+        const sppPct = m.spp !== undefined ? (m.spp * 100).toFixed(0) : null;
+        const sppColor = m.spp >= 0.7 ? C.success : m.spp >= 0.45 ? C.warn : C.danger;
+
+        return (
+          <button key={m.id} onClick={() => onVerPerfil(m)} style={{
+            width: "100%", textAlign: "left", padding: "14px 16px", marginBottom: 8,
+            background: C.white, border: `1px solid ${C.border}`,
+            borderRadius: 12, cursor: "pointer", fontFamily: fontStack,
+            transition: "all .15s", boxShadow: C.shadow,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = C.primary; e.currentTarget.style.boxShadow = C.shadowMd; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.boxShadow = C.shadow; }}
+          >
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: C.textMain }}>{m.nombre}</div>
+              <div style={{ fontSize: 12, color: C.textSub, marginTop: 3 }}>
+                {m.especialidad}{m.zona ? ` · ${m.zona}` : ""}
+              </div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                {m.total_visitas || 0} visitas · {m.confianza || "baja"} confianza
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+              {sppPct !== null && (
+                <div style={{
+                  padding: "6px 12px", borderRadius: 10, fontSize: 16, fontWeight: 800,
+                  color: sppColor, background: `${sppColor}12`,
+                }}>
+                  {sppPct}%
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: C.muted }}>→</div>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
