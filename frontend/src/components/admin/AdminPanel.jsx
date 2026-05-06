@@ -8,12 +8,12 @@ import { SectionTitle, StatCard, ChartCard, ChartLegend, CustomTooltip } from '.
 
 export default function AdminPanel({ apiFetch }) {
   const [visitadores, setVisitadores] = useState([]);
-  const [filtroVisitador, setFiltroVisitador] = useState(null); // null = todos
+  const [filtroVisitador, setFiltroVisitador] = useState(null);
   const [visitas, setVisitas] = useState([]);
   const [stats, setStats] = useState(null);
   const [statsPorRep, setStatsPorRep] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [subTab, setSubTab] = useState("resumen"); // resumen | visitas | comparativo
+  const [subTab, setSubTab] = useState("resumen");
 
   // ── Cargar visitadores ──────────────────────────────────────
   useEffect(() => {
@@ -27,10 +27,14 @@ export default function AdminPanel({ apiFetch }) {
   const cargarDatos = useCallback(async () => {
     setLoading(true);
     try {
-      const filtro = filtroVisitador ? `?visitador_id=${filtroVisitador}` : "";
+      const params = filtroVisitador ? `?visitador_id=${filtroVisitador}` : "";
+      const visitasParams = filtroVisitador
+        ? `?visitador_id=${filtroVisitador}&limite=200`
+        : "?limite=200";
+
       const [resStats, resVisitas] = await Promise.all([
-        apiFetch(`/admin/stats${filtro}`),
-        apiFetch(`/admin/visitas${filtro}&limite=200`),
+        apiFetch(`/admin/stats${params}`),
+        apiFetch(`/admin/visitas${visitasParams}`),
       ]);
       if (resStats.ok) setStats(await resStats.json());
       if (resVisitas.ok) setVisitas(await resVisitas.json());
@@ -46,13 +50,8 @@ export default function AdminPanel({ apiFetch }) {
     } catch {}
   }, [apiFetch]);
 
-  useEffect(() => {
-    cargarDatos();
-  }, [cargarDatos]);
-
-  useEffect(() => {
-    if (subTab === "comparativo") cargarComparativo();
-  }, [subTab, cargarComparativo]);
+  useEffect(() => { cargarDatos(); }, [cargarDatos]);
+  useEffect(() => { if (subTab === "comparativo") cargarComparativo(); }, [subTab, cargarComparativo]);
 
   // ── Datos calculados para charts ────────────────────────────
   const datosResultados = useMemo(() => {
@@ -75,6 +74,19 @@ export default function AdminPanel({ apiFetch }) {
     return Object.values(porDia).sort((a, b) => a.fecha.localeCompare(b.fecha));
   }, [visitas]);
 
+  // Datos de visitas agrupadas por visitador (para resumen)
+  const datosPorVisitador = useMemo(() => {
+    if (filtroVisitador) return []; // No mostrar si ya hay filtro
+    const porVis = {};
+    visitas.forEach(h => {
+      const nom = h.visitador_nombre || "Desconocido";
+      if (!porVis[nom]) porVis[nom] = { name: nom, total: 0, exitosas: 0 };
+      porVis[nom].total++;
+      if (h.resultado === "exitosa" || h.resultado === "retraso") porVis[nom].exitosas++;
+    });
+    return Object.values(porVis).sort((a, b) => b.total - a.total);
+  }, [visitas, filtroVisitador]);
+
   // ── Sub-tabs ────────────────────────────────────────────────
   const subTabs = [
     { id: "resumen", label: "Resumen", icon: "📊" },
@@ -86,26 +98,46 @@ export default function AdminPanel({ apiFetch }) {
     <div>
       <SectionTitle>Panel Administrativo</SectionTitle>
 
-      {/* Filtro por visitador */}
+      {/* Filtro por visitador — estilizado */}
       <div style={{ marginBottom: 16 }}>
         <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.textSub, marginBottom: 6 }}>
           Filtrar por visitador
         </label>
-        <select
-          value={filtroVisitador || ""}
-          onChange={e => setFiltroVisitador(e.target.value ? Number(e.target.value) : null)}
-          style={{
-            width: "100%", padding: "10px 14px", fontSize: 14,
-            fontFamily: fontStack, background: C.white,
-            border: `1.5px solid ${C.border}`, borderRadius: 10,
-            color: C.textMain, outline: "none", cursor: "pointer",
-          }}
-        >
-          <option value="">Todos los visitadores</option>
-          {visitadores.map(v => (
-            <option key={v.id} value={v.id}>{v.nombre}</option>
-          ))}
-        </select>
+        <div style={{ position: "relative" }}>
+          <select
+            value={filtroVisitador || ""}
+            onChange={e => setFiltroVisitador(e.target.value ? Number(e.target.value) : null)}
+            style={{
+              width: "100%", padding: "11px 40px 11px 14px", fontSize: 14,
+              fontFamily: fontStack, background: C.white,
+              border: `1.5px solid ${filtroVisitador ? C.primary : C.border}`,
+              borderRadius: 10, color: C.textMain, outline: "none",
+              cursor: "pointer", appearance: "none", transition: "border-color 0.2s",
+              boxShadow: filtroVisitador ? `0 0 0 3px ${C.primary}10` : "none",
+            }}
+          >
+            <option value="">🏢 Todos los visitadores</option>
+            {visitadores.map(v => (
+              <option key={v.id} value={v.id}>👤 {v.nombre}</option>
+            ))}
+          </select>
+          <div style={{
+            position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)",
+            pointerEvents: "none", fontSize: 12, color: C.muted,
+          }}>▼</div>
+        </div>
+        {filtroVisitador && (
+          <button
+            onClick={() => setFiltroVisitador(null)}
+            style={{
+              marginTop: 6, padding: "4px 12px", fontSize: 12, fontFamily: fontStack,
+              background: `${C.primary}08`, border: `1px solid ${C.primary}25`,
+              borderRadius: 6, color: C.primary, cursor: "pointer",
+            }}
+          >
+            ✕ Limpiar filtro
+          </button>
+        )}
       </div>
 
       {/* Sub-tabs */}
@@ -126,16 +158,15 @@ export default function AdminPanel({ apiFetch }) {
       {loading && <div style={{ color: C.muted, textAlign: "center", padding: 24 }}>Cargando datos...</div>}
 
       {!loading && subTab === "resumen" && (
-        <ResumenAdmin stats={stats} datosResultados={datosResultados} datosResultadoPie={datosResultadoPie} datosPorDia={datosPorDia} filtroVisitador={filtroVisitador} visitadores={visitadores} />
+        <ResumenAdmin
+          stats={stats} datosResultados={datosResultados}
+          datosResultadoPie={datosResultadoPie} datosPorDia={datosPorDia}
+          datosPorVisitador={datosPorVisitador}
+          filtroVisitador={filtroVisitador} visitadores={visitadores}
+        />
       )}
-
-      {!loading && subTab === "visitas" && (
-        <TablaVisitas visitas={visitas} />
-      )}
-
-      {!loading && subTab === "comparativo" && (
-        <Comparativo statsPorRep={statsPorRep} />
-      )}
+      {!loading && subTab === "visitas" && <TablaVisitas visitas={visitas} />}
+      {!loading && subTab === "comparativo" && <Comparativo statsPorRep={statsPorRep} />}
     </div>
   );
 }
@@ -143,12 +174,12 @@ export default function AdminPanel({ apiFetch }) {
 // ══════════════════════════════════════════════════════════════════
 // SUB: RESUMEN
 // ══════════════════════════════════════════════════════════════════
-function ResumenAdmin({ stats, datosResultados, datosResultadoPie, datosPorDia, filtroVisitador, visitadores }) {
+function ResumenAdmin({ stats, datosResultados, datosResultadoPie, datosPorDia, datosPorVisitador, filtroVisitador, visitadores }) {
   if (!stats) return null;
 
   const filtroLabel = filtroVisitador
     ? visitadores.find(v => v.id === filtroVisitador)?.nombre || "Visitador"
-    : "Todos";
+    : "Todo el equipo";
 
   if (stats.total_visitas === 0) {
     return (
@@ -164,8 +195,12 @@ function ResumenAdmin({ stats, datosResultados, datosResultadoPie, datosPorDia, 
 
   return (
     <div>
-      <div style={{ fontSize: 12, color: C.muted, marginBottom: 12, fontWeight: 500 }}>
-        Mostrando: {filtroLabel}
+      <div style={{
+        fontSize: 12, color: C.white, marginBottom: 14, fontWeight: 500,
+        background: C.gradientPrimary, padding: "6px 12px", borderRadius: 8,
+        display: "inline-block",
+      }}>
+        📈 {filtroLabel}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10, marginBottom: 20 }}>
@@ -223,6 +258,22 @@ function ResumenAdmin({ stats, datosResultados, datosResultadoPie, datosPorDia, 
           <ChartLegend items={[{ color: C.primary, label: "Total" }, { color: C.success, label: "Exitosas" }]} />
         </ChartCard>
       )}
+
+      {/* Chart de visitas por visitador en resumen (solo cuando no hay filtro) */}
+      {datosPorVisitador.length > 1 && (
+        <ChartCard title="Visitas por visitador">
+          <ResponsiveContainer width="100%" height={Math.max(120, datosPorVisitador.length * 50)}>
+            <BarChart data={datosPorVisitador} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+              <XAxis type="number" tick={{ fill: C.muted, fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <YAxis type="category" dataKey="name" tick={{ fill: C.textSub, fontSize: 12 }} axisLine={false} tickLine={false} width={120} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: `${C.primary}08` }} />
+              <Bar dataKey="total" name="Total" fill={C.primary} radius={[0, 6, 6, 0]} barSize={16} />
+              <Bar dataKey="exitosas" name="Efectivas" fill={C.success} radius={[0, 6, 6, 0]} barSize={16} />
+            </BarChart>
+          </ResponsiveContainer>
+          <ChartLegend items={[{ color: C.primary, label: "Total" }, { color: C.success, label: "Efectivas" }]} />
+        </ChartCard>
+      )}
     </div>
   );
 }
@@ -231,6 +282,12 @@ function ResumenAdmin({ stats, datosResultados, datosResultadoPie, datosPorDia, 
 // SUB: TABLA DE VISITAS
 // ══════════════════════════════════════════════════════════════════
 function TablaVisitas({ visitas }) {
+  const [pagina, setPagina] = useState(0);
+  const POR_PAGINA = 20;
+
+  const totalPaginas = Math.ceil(visitas.length / POR_PAGINA);
+  const visitasPagina = visitas.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
+
   if (visitas.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: 30, color: C.muted, fontSize: 14 }}>
@@ -241,10 +298,14 @@ function TablaVisitas({ visitas }) {
 
   return (
     <div>
-      <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>
-        {visitas.length} visitas
+      <div style={{ fontSize: 12, color: C.muted, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span>{visitas.length} visitas</span>
+        {totalPaginas > 1 && (
+          <span>Página {pagina + 1} de {totalPaginas}</span>
+        )}
       </div>
-      {visitas.map(h => {
+
+      {visitasPagina.map(h => {
         const res = RESULTADOS.find(r => r.id === h.resultado);
         if (!res) return null;
         return (
@@ -252,28 +313,49 @@ function TablaVisitas({ visitas }) {
             background: C.white, border: `1px solid ${C.border}`,
             borderRadius: 12, padding: "12px 14px", marginBottom: 8, boxShadow: C.shadow,
           }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, color: C.textMain }}>{h.medico_nombre}</div>
                 <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-                  {h.consultorio} · {h.fecha}
+                  {h.consultorio} · {h.fecha} · {h.hora_llegada}
                 </div>
                 {h.visitador_nombre && (
                   <div style={{
-                    fontSize: 11, color: C.action, fontWeight: 500, marginTop: 3,
+                    fontSize: 11, color: C.action, fontWeight: 500, marginTop: 4,
                     display: "inline-flex", alignItems: "center", gap: 4,
                     background: `${C.action}10`, padding: "2px 8px", borderRadius: 6,
                   }}>
                     👤 {h.visitador_nombre}
                   </div>
                 )}
+                {h.producto && (
+                  <div style={{ fontSize: 11, color: C.textSub, marginTop: 3 }}>
+                    💊 {h.producto}
+                  </div>
+                )}
+                {h.nota && (
+                  <div style={{
+                    fontSize: 11, color: C.textSub, marginTop: 4, lineHeight: 1.4,
+                    background: C.section, borderRadius: 6, padding: "4px 8px",
+                    borderLeft: `2px solid ${C.accent}`,
+                  }}>
+                    {h.nota}
+                  </div>
+                )}
               </div>
-              <div style={{
-                padding: "4px 10px", background: `${res.color}10`,
-                border: `1px solid ${res.color}25`, borderRadius: 8,
-                fontSize: 11, fontWeight: 600, color: res.color, whiteSpace: "nowrap",
-              }}>
-                {res.emoji} {res.label}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, marginLeft: 10 }}>
+                <div style={{
+                  padding: "4px 10px", background: `${res.color}10`,
+                  border: `1px solid ${res.color}25`, borderRadius: 8,
+                  fontSize: 11, fontWeight: 600, color: res.color, whiteSpace: "nowrap",
+                }}>
+                  {res.emoji} {res.label}
+                </div>
+                {h.tiempo_espera !== null && h.tiempo_espera !== undefined && (
+                  <div style={{ fontSize: 10, color: C.muted }}>
+                    ⏱ {h.tiempo_espera} min
+                  </div>
+                )}
               </div>
             </div>
             {h.nivel_interes && (
@@ -285,13 +367,45 @@ function TablaVisitas({ visitas }) {
                   }} />
                 ))}
                 <span style={{ fontSize: 10, color: NIVEL_INTERES[h.nivel_interes - 1].color, fontWeight: 600 }}>
-                  {h.nivel_interes}/5
+                  {h.nivel_interes}/5 · {NIVEL_INTERES[h.nivel_interes - 1].label}
                 </span>
               </div>
             )}
           </div>
         );
       })}
+
+      {/* Paginación */}
+      {totalPaginas > 1 && (
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 16 }}>
+          <button
+            disabled={pagina === 0}
+            onClick={() => setPagina(p => p - 1)}
+            style={{
+              padding: "8px 16px", fontSize: 13, fontFamily: fontStack,
+              background: pagina === 0 ? C.section : C.white,
+              border: `1.5px solid ${C.border}`, borderRadius: 8,
+              color: pagina === 0 ? C.muted : C.textMain,
+              cursor: pagina === 0 ? "not-allowed" : "pointer",
+            }}
+          >
+            ← Anterior
+          </button>
+          <button
+            disabled={pagina >= totalPaginas - 1}
+            onClick={() => setPagina(p => p + 1)}
+            style={{
+              padding: "8px 16px", fontSize: 13, fontFamily: fontStack,
+              background: pagina >= totalPaginas - 1 ? C.section : C.white,
+              border: `1.5px solid ${C.border}`, borderRadius: 8,
+              color: pagina >= totalPaginas - 1 ? C.muted : C.textMain,
+              cursor: pagina >= totalPaginas - 1 ? "not-allowed" : "pointer",
+            }}
+          >
+            Siguiente →
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -322,30 +436,53 @@ function Comparativo({ statsPorRep }) {
 
   return (
     <div>
-      {/* Cards por visitador */}
-      {statsPorRep.map(s => (
-        <div key={s.visitador_id} style={{
-          background: C.white, border: `1px solid ${C.border}`, borderRadius: 12,
-          padding: "14px 16px", marginBottom: 10, boxShadow: C.shadow,
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: C.textMain }}>{s.visitador_nombre}</div>
-            <div style={{
-              padding: "3px 10px", borderRadius: 8, fontSize: 12, fontWeight: 700,
-              color: s.tasa_exito >= 0.5 ? C.success : s.tasa_exito >= 0.3 ? C.warn : C.danger,
-              background: `${s.tasa_exito >= 0.5 ? C.success : s.tasa_exito >= 0.3 ? C.warn : C.danger}12`,
-            }}>
-              {Math.round(s.tasa_exito * 100)}% éxito
+      {/* Cards por visitador con barra de progreso */}
+      {statsPorRep.map(s => {
+        const tasaPct = Math.round(s.tasa_exito * 100);
+        const tasaColor = s.tasa_exito >= 0.5 ? C.success : s.tasa_exito >= 0.3 ? C.warn : C.danger;
+
+        return (
+          <div key={s.visitador_id} style={{
+            background: C.white, border: `1px solid ${C.border}`, borderRadius: 12,
+            padding: "14px 16px", marginBottom: 10, boxShadow: C.shadow,
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: C.textMain }}>{s.visitador_nombre}</div>
+              <div style={{
+                padding: "3px 10px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                color: tasaColor, background: `${tasaColor}12`,
+              }}>
+                {tasaPct}% éxito
+              </div>
+            </div>
+
+            {/* Barra de progreso visual */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{
+                width: "100%", height: 6, background: C.section,
+                borderRadius: 3, overflow: "hidden",
+              }}>
+                <div style={{
+                  width: `${Math.max(tasaPct, 2)}%`, height: "100%",
+                  background: tasaColor, borderRadius: 3,
+                  transition: "width 0.5s ease",
+                }} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
+                <span style={{ fontSize: 10, color: C.muted }}>0%</span>
+                <span style={{ fontSize: 10, color: C.muted }}>100%</span>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+              <MiniStat label="Visitas" value={s.total_visitas} color={C.primary} />
+              <MiniStat label="Exitosas" value={s.visitas_exitosas} color={C.success} />
+              <MiniStat label="Interés" value={s.nivel_interes_promedio?.toFixed(1) || "—"} color={C.accent} />
+              <MiniStat label="Espera" value={s.tiempo_espera_promedio ? `${Math.round(s.tiempo_espera_promedio)}m` : "—"} color={C.warn} />
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
-            <MiniStat label="Visitas" value={s.total_visitas} />
-            <MiniStat label="Exitosas" value={s.visitas_exitosas} />
-            <MiniStat label="Interés" value={s.nivel_interes_promedio?.toFixed(1) || "—"} />
-            <MiniStat label="Espera" value={s.tiempo_espera_promedio ? `${Math.round(s.tiempo_espera_promedio)}m` : "—"} />
-          </div>
-        </div>
-      ))}
+        );
+      })}
 
       {/* Chart comparativo */}
       <ChartCard title="Visitas por visitador">
@@ -378,10 +515,10 @@ function Comparativo({ statsPorRep }) {
   );
 }
 
-function MiniStat({ label, value }) {
+function MiniStat({ label, value, color = C.textMain }) {
   return (
     <div style={{ textAlign: "center" }}>
-      <div style={{ fontSize: 15, fontWeight: 700, color: C.textMain }}>{value}</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color }}>{value}</div>
       <div style={{ fontSize: 10, color: C.muted }}>{label}</div>
     </div>
   );
