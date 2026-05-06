@@ -423,13 +423,13 @@ function Comparativo({ statsPorRep }) {
   }
 
   const datosBarras = statsPorRep.map(s => ({
-    name: s.visitador_nombre?.split(" ")[0] || "?",
+    name: s.visitador_nombre?.split(" ").slice(0, 2).join(" ") || "?",
     total: s.total_visitas,
     exitosas: s.visitas_exitosas,
   }));
 
   const datosTasa = statsPorRep.map(s => ({
-    name: s.visitador_nombre?.split(" ")[0] || "?",
+    name: s.visitador_nombre?.split(" ").slice(0, 2).join(" ") || "?",
     tasa: Math.round(s.tasa_exito * 100),
     color: s.tasa_exito >= 0.5 ? C.success : s.tasa_exito >= 0.3 ? C.warn : C.danger,
   }));
