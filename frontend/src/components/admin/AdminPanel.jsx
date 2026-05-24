@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { C, fontStack, RESULTADOS, NIVEL_INTERES } from '../../constants';
 import { SectionTitle, StatCard, ChartCard, ChartLegend, CustomTooltip } from '../shared/index.jsx';
+import GestionMedicos from './GestionMedicos';
 
 export default function AdminPanel({ apiFetch }) {
   const [visitadores, setVisitadores] = useState([]);
@@ -92,6 +93,7 @@ export default function AdminPanel({ apiFetch }) {
     { id: "resumen", label: "Resumen", icon: "📊" },
     { id: "visitas", label: "Visitas", icon: "📋" },
     { id: "comparativo", label: "Por visitador", icon: "👥" },
+    { id: "medicos", label: "Médicos", icon: "🩺" },
   ];
 
   return (
@@ -167,6 +169,7 @@ export default function AdminPanel({ apiFetch }) {
       )}
       {!loading && subTab === "visitas" && <TablaVisitas visitas={visitas} />}
       {!loading && subTab === "comparativo" && <Comparativo statsPorRep={statsPorRep} />}
+      {subTab === "medicos" && <GestionMedicos apiFetch={apiFetch} />}
     </div>
   );
 }
@@ -423,13 +426,13 @@ function Comparativo({ statsPorRep }) {
   }
 
   const datosBarras = statsPorRep.map(s => ({
-    name: s.visitador_nombre?.split(" ").slice(0, 2).join(" ") || "?",
+    name: s.visitador_nombre?.split(" ")[0] || "?",
     total: s.total_visitas,
     exitosas: s.visitas_exitosas,
   }));
 
   const datosTasa = statsPorRep.map(s => ({
-    name: s.visitador_nombre?.split(" ").slice(0, 2).join(" ") || "?",
+    name: s.visitador_nombre?.split(" ")[0] || "?",
     tasa: Math.round(s.tasa_exito * 100),
     color: s.tasa_exito >= 0.5 ? C.success : s.tasa_exito >= 0.3 ? C.warn : C.danger,
   }));
