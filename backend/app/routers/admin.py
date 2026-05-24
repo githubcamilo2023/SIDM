@@ -228,3 +228,72 @@ async def stats_por_visitador(
 
     stats_list.sort(key=lambda x: x["total_visitas"], reverse=True)
     return stats_list
+
+
+# ── CREAR MÉDICO ──────────────────────────────────────────────────
+@router.post("/medicos", status_code=201)
+async def crear_medico(
+    body: MedicoCreate,
+    current_user: dict = Depends(require_role("admin", "supervisor")),
+):
+    db = get_supabase()
+    laboratorio = body.laboratorio or current_user.get("laboratorio")
+    medico_data = {
+        "nombre": body.nombre,
+        "especialidad": body.especialidad,
+        "zona": body.zona,
+        "consultorio": body.consultorio,
+        "ips": body.ips,
+        "laboratorio": laboratorio,
+        "activo": True,
+    }
+    result = db.table("medicos").insert(medico_data).execute()
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Error al crear el médico")
+    logger.info("Médico creado: id=%s nombre=%s (por user=%s)",
+                result.data[0]["id"], body.nombre, current_user["id"])
+    return {"ok": True, "medico": result.data[0]}
+
+
+# ── EDITAR MÉDICO ─────────────────────────────────────────────────
+@router.put("/medicos/{medico_id}")
+async def editar_medico(
+    medico_id: int,
+    body: MedicoUpdate,
+    current_user: dict = Depends(require_role("admin", "supervisor")),
+):
+    db = get_supabase()
+    existing = db.table("medicos").select("id, laboratorio").eq("id", medico_id).execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Médico no encontrado")
+    user_lab = current_user.get("laboratorio")
+    medico_lab = existing.data[0].get("laboratorio")
+    if user_lab and medico_lab and user_lab != medico_lab:
+        raise HTTPException(status_code=403, detail="No tienes acceso a este médico")
+    update_data = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=422, detail="No hay campos para actualizar")
+    result = db.table("medicos").update(update_data).eq("id", medico_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Error al actualizar el médico")
+    logger.info("Médico actualizado: id=%s (por user=%s)", medico_id, current_user["id"])
+    return {"ok": True, "medico": result.data[0]}
+
+
+# ── DESACTIVAR MÉDICO ─────────────────────────────────────────────
+@router.delete("/medicos/{medico_id}")
+async def desactivar_medico(
+    medico_id: int,
+    current_user: dict = Depends(require_role("admin", "supervisor")),
+):
+    db = get_supabase()
+    existing = db.table("medicos").select("id, laboratorio, nombre").eq("id", medico_id).execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Médico no encontrado")
+    user_lab = current_user.get("laboratorio")
+    medico_lab = existing.data[0].get("laboratorio")
+    if user_lab and medico_lab and user_lab != medico_lab:
+        raise HTTPException(status_code=403, detail="No tienes acceso a este médico")
+    db.table("medicos").update({"activo": False}).eq("id", medico_id).execute()
+    logger.info("Médico desactivado: id=%s (por user=%s)", medico_id, current_user["id"])
+    return {"ok": True, "mensaje": f"Médico {existing.data[0]['nombre']} desactivado"}
