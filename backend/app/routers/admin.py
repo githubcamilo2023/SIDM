@@ -242,8 +242,6 @@ async def crear_medico(
         "nombre": body.nombre,
         "especialidad": body.especialidad,
         "zona": body.zona,
-        "consultorio": body.consultorio,
-        "ips": body.ips,
         "laboratorio": laboratorio,
         "activo": True,
     }
