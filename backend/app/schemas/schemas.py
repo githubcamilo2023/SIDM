@@ -120,3 +120,22 @@ class HistorialStats(BaseModel):
     tasa_exito: float
     nivel_interes_promedio: Optional[float] = None
     tiempo_espera_promedio: Optional[float] = None
+
+
+# medicos
+class MedicoCreate(BaseModel):
+    nombre: str = Field(..., min_length=2, max_length=150)
+    especialidad: Optional[str] = Field(None, max_length=100)
+    zona: Optional[str] = Field(None, max_length=100)
+    consultorio: Optional[str] = Field(None, max_length=200)
+    ips: Optional[str] = Field(None, max_length=200)
+    laboratorio: Optional[str] = Field(None, max_length=100)
+
+
+class MedicoUpdate(BaseModel):
+    nombre: Optional[str] = Field(None, min_length=2, max_length=150)
+    especialidad: Optional[str] = Field(None, max_length=100)
+    zona: Optional[str] = Field(None, max_length=100)
+    consultorio: Optional[str] = Field(None, max_length=200)
+    ips: Optional[str] = Field(None, max_length=200)
+    activo: Optional[bool] = None

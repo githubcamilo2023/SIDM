@@ -1,9 +1,9 @@
 import logging
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 from app.core.auth import require_role
 from app.core.database import get_supabase
-from app.schemas.schemas import VisitaOut, HistorialStats
+from app.schemas.schemas import VisitaOut, HistorialStats, MedicoCreate, MedicoUpdate
 
 logger = logging.getLogger("sidm.router.admin")
 router = APIRouter(prefix="/admin", tags=["admin"])
