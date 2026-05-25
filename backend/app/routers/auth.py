@@ -1,8 +1,8 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from passlib.context import CryptContext
 from app.schemas.schemas import (
-    LoginRequest, TokenResponse, RefreshRequest, ChangePasswordRequest,
+    LoginRequest, TokenResponse, RefreshRequest, LogoutRequest, ChangePasswordRequest,
 )
 from app.core.auth import (
     create_access_token, create_refresh_token, decode_token,
@@ -35,7 +35,7 @@ async def login(body: LoginRequest):
     try:
         result = (
             db.table("visitadores")
-            .select("id, nombre, email, password_hash, laboratorio, rol, activo")
+            .select("id, nombre, email, password_hash, laboratorio, rol, activo, token_version")
             .eq("email", body.email)
             .eq("activo", True)
             .execute()
@@ -63,11 +63,12 @@ async def login(body: LoginRequest):
     # Login exitoso — limpiar rate limit
     reset_attempts(rate_key)
 
-    token_data = {"sub": str(visitador["id"])}
+    token_data = {"sub": str(visitador["id"]), "ver": visitador.get("token_version", 0)}
     access_token  = create_access_token(token_data)
     refresh_token = create_refresh_token(token_data)
 
     visitador.pop("password_hash", None)
+    visitador.pop("token_version", None)
 
     logger.info("Login exitoso: visitador_id=%s email=%s", visitador["id"], body.email)
 
@@ -86,19 +87,38 @@ async def refresh(body: RefreshRequest):
     if not user_id:
         raise HTTPException(status_code=401, detail="Refresh token inválido")
 
-    new_access = create_access_token({"sub": user_id})
+    db = get_supabase()
+    result = (
+        db.table("visitadores")
+        .select("id, activo, token_version")
+        .eq("id", user_id)
+        .single()
+        .execute()
+    )
+    if not result.data or not result.data.get("activo", False):
+        raise HTTPException(status_code=401, detail="Refresh token inválido")
+
+    token_version = result.data.get("token_version", 0)
+    if payload.get("ver") != token_version:
+        raise HTTPException(status_code=401, detail="Refresh token revocado")
+
+    new_access = create_access_token({"sub": user_id, "ver": token_version})
     return {"access_token": new_access, "token_type": "bearer"}
 
 
 @router.post("/logout")
-async def logout(current_user: dict = Depends(get_current_user)):
+async def logout(
+    body: LogoutRequest | None = None,
+    current_user: dict = Depends(get_current_user),
+):
     """
-    Revoca el access token actual.
-    El frontend debe descartar también el refresh token localmente.
+    Revoca el access token actual y el refresh token si el cliente lo envía.
     """
     raw_token = current_user.get("_raw_token")
     if raw_token:
         blacklist_token(raw_token)
+    if body and body.refresh_token:
+        blacklist_token(body.refresh_token)
 
     logger.info("Logout: visitador_id=%s", current_user["id"])
     return {"ok": True, "mensaje": "Sesión cerrada"}
@@ -118,7 +138,7 @@ async def change_password(
     # Obtener hash actual
     result = (
         db.table("visitadores")
-        .select("password_hash")
+        .select("password_hash, token_version")
         .eq("id", current_user["id"])
         .single()
         .execute()
@@ -145,6 +165,7 @@ async def change_password(
     new_hash = pwd_context.hash(body.new_password)
     db.table("visitadores").update({
         "password_hash": new_hash,
+        "token_version": result.data.get("token_version", 0) + 1,
     }).eq("id", current_user["id"]).execute()
 
     # Revocar token actual — forzar re-login con nueva contraseña
@@ -163,5 +184,9 @@ async def change_password(
 @router.get("/me")
 async def me(current_user: dict = Depends(get_current_user)):
     # No exponer el token raw al cliente
-    user = {k: v for k, v in current_user.items() if not k.startswith("_")}
+    user = {
+        k: v
+        for k, v in current_user.items()
+        if not k.startswith("_") and k != "token_version"
+    }
     return user

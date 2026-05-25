@@ -8,6 +8,31 @@ from app.schemas.schemas import VisitaOut, HistorialStats, MedicoCreate, MedicoU
 logger = logging.getLogger("sidm.router.admin")
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+def _visitador_ids_permitidos(db, current_user: dict) -> list[int] | None:
+    user_lab = current_user.get("laboratorio")
+    if not user_lab:
+        return None
+
+    result = (
+        db.table("visitadores")
+        .select("id")
+        .eq("laboratorio", user_lab)
+        .eq("activo", True)
+        .execute()
+    )
+    return [v["id"] for v in (result.data or [])]
+
+
+def _validar_visitador_permitido(
+    visitador_id: int,
+    ids_permitidos: list[int] | None,
+) -> None:
+    if ids_permitidos is not None and visitador_id not in ids_permitidos:
+        raise HTTPException(
+            status_code=403,
+            detail="No tienes acceso a este visitador",
+        )
+
 
 # ── LISTAR VISITADORES ────────────────────────────────────────────
 @router.get("/visitadores")
@@ -52,26 +77,18 @@ async def historial_global(
         .select("*, medicos(nombre), visitadores(nombre)")
     )
 
+    vis_ids = _visitador_ids_permitidos(db, current_user)
+
     # Filtrar por visitador específico si se provee
     if visitador_id:
+        _validar_visitador_permitido(visitador_id, vis_ids)
         query = query.eq("visitador_id", visitador_id)
+    elif vis_ids == []:
+        return []
+    elif vis_ids is not None:
+        query = query.in_("visitador_id", vis_ids)
     else:
-        # Filtrar por laboratorio: obtener IDs de visitadores del lab
-        user_lab = current_user.get("laboratorio")
-        if user_lab:
-            vis_result = (
-                db.table("visitadores")
-                .select("id")
-                .eq("laboratorio", user_lab)
-                .eq("activo", True)
-                .execute()
-            )
-            vis_ids = [v["id"] for v in (vis_result.data or [])]
-            if vis_ids:
-                query = query.in_("visitador_id", vis_ids)
-            else:
-                return []
-
+        logger.warning("Admin/supervisor sin laboratorio: user=%s", current_user["id"])
     result = query.order("creado_en", desc=True).limit(limite).execute()
 
     visitas = []
@@ -111,7 +128,10 @@ async def stats_global(
     """
     db = get_supabase()
 
+    vis_ids = _visitador_ids_permitidos(db, current_user)
+
     if visitador_id:
+        _validar_visitador_permitido(visitador_id, vis_ids)
         # Stats de un visitador específico
         result = (
             db.table("visitas")
@@ -120,21 +140,11 @@ async def stats_global(
             .execute()
         )
     else:
-        # Stats globales del laboratorio
-        user_lab = current_user.get("laboratorio")
-        if user_lab:
-            vis_result = (
-                db.table("visitadores")
-                .select("id")
-                .eq("laboratorio", user_lab)
-                .eq("activo", True)
-                .execute()
+        if vis_ids == []:
+            return HistorialStats(
+                total_visitas=0, visitas_exitosas=0, tasa_exito=0.0,
             )
-            vis_ids = [v["id"] for v in (vis_result.data or [])]
-            if not vis_ids:
-                return HistorialStats(
-                    total_visitas=0, visitas_exitosas=0, tasa_exito=0.0,
-                )
+        if vis_ids is not None:
             result = (
                 db.table("visitas")
                 .select("resultado, nivel_interes, tiempo_espera")
@@ -142,12 +152,12 @@ async def stats_global(
                 .execute()
             )
         else:
+            logger.warning("Admin/supervisor sin laboratorio: user=%s", current_user["id"])
             result = (
                 db.table("visitas")
                 .select("resultado, nivel_interes, tiempo_espera")
                 .execute()
             )
-
     visitas = result.data or []
     total = len(visitas)
 
@@ -237,7 +247,17 @@ async def crear_medico(
     current_user: dict = Depends(require_role("admin", "supervisor")),
 ):
     db = get_supabase()
-    laboratorio = body.laboratorio or current_user.get("laboratorio")
+    laboratorio = current_user.get("laboratorio")
+    if not laboratorio:
+        laboratorio = body.laboratorio
+    elif body.laboratorio and body.laboratorio != laboratorio:
+        raise HTTPException(
+            status_code=403,
+            detail="No puedes crear médicos en otro laboratorio",
+        )
+
+    if not laboratorio:
+        raise HTTPException(status_code=422, detail="Laboratorio requerido")
     medico_data = {
         "nombre": body.nombre,
         "especialidad": body.especialidad,

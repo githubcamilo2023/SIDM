@@ -195,6 +195,23 @@ def actualizar_patron(medico_id: int, dia_semana: int, franja_hora: int, resulta
     db = get_supabase()
     exitosa = int(RESULTADO_SCORE.get(resultado, 0) >= 0.5)
 
+    try:
+        db.rpc("incrementar_patron_spp", {
+            "p_medico_id": medico_id,
+            "p_dia_semana": dia_semana,
+            "p_franja_hora": franja_hora,
+            "p_exitosa": exitosa,
+            "p_alpha": ALPHA,
+            "p_beta": BETA,
+        }).execute()
+        logger.info(
+            "Patrón incrementado atómicamente: medico=%d dia=%d hora=%d",
+            medico_id, dia_semana, franja_hora,
+        )
+        return
+    except Exception as e:
+        logger.error("RPC incrementar_patron_spp no disponible: %s", e)
+
     existing = (
         db.table("patrones")
         .select("id, total_visitas, visitas_exitosas")

@@ -15,11 +15,12 @@ logging.basicConfig(
 logger = logging.getLogger("sidm")
 
 settings = get_settings()
+APP_VERSION = "0.3.1"
 
 app = FastAPI(
     title="SIDM API",
     description="Sistema de Inteligencia de Disponibilidad Médica — Backend",
-    version="0.3.0",                                     # ← bump version
+    version=APP_VERSION,
     docs_url="/docs" if settings.app_env == "development" else None,
     redoc_url="/redoc" if settings.app_env == "development" else None,
 )
@@ -67,7 +68,7 @@ app.include_router(admin.router,   prefix="/api/v1")   # ← NUEVO
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "sistema": "SIDM API v0.3.0"}
+    return {"status": "ok", "sistema": f"SIDM API v{APP_VERSION}"}
 
 
 @app.get("/health")

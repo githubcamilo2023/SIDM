@@ -21,7 +21,13 @@ export default function App() {
       if (t) {
         await fetch(`${API_URL}/auth/logout`, {
           method: "POST",
-          headers: { "Authorization": `Bearer ${t}` },
+          headers: {
+            "Authorization": `Bearer ${t}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            refresh_token: AuthService.getRefreshToken(),
+          }),
         });
       }
     } catch {}

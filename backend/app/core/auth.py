@@ -23,7 +23,7 @@ def _cleanup_blacklist():
 
 
 def blacklist_token(token: str):
-    """Revoca un token agregándolo al blacklist."""
+    """Revoca un token agregándolo al blacklist local y persistente."""
     settings = get_settings()
     try:
         payload = jwt.decode(
@@ -33,15 +33,52 @@ def blacklist_token(token: str):
         exp = datetime.fromtimestamp(payload.get("exp", 0), tz=timezone.utc)
         if jti:
             _blacklisted_tokens[jti] = exp
+            _persist_blacklist(payload, exp)
             _cleanup_blacklist()
             logger.info("Token revocado: jti=%s", jti)
     except JWTError:
-        pass  # Token ya inválido, no importa
+        pass
 
 
 def _is_blacklisted(jti: str) -> bool:
-    return jti in _blacklisted_tokens
+    if jti in _blacklisted_tokens:
+        return True
 
+    db = get_supabase()
+    try:
+        result = (
+            db.table("token_revocations")
+            .select("jti")
+            .eq("jti", jti)
+            .gt("expires_at", datetime.now(timezone.utc).isoformat())
+            .limit(1)
+            .execute()
+        )
+        return bool(result.data)
+    except Exception as exc:
+        logger.error("Error consultando token_revocations: %s", exc)
+        return False
+
+
+def _persist_blacklist(payload: dict, exp: datetime) -> None:
+    jti = payload.get("jti")
+    if not jti:
+        return
+
+    user_id = payload.get("sub")
+    if isinstance(user_id, str) and user_id.isdigit():
+        user_id = int(user_id)
+
+    db = get_supabase()
+    try:
+        db.table("token_revocations").upsert({
+            "jti": jti,
+            "user_id": user_id,
+            "token_type": payload.get("type"),
+            "expires_at": exp.isoformat(),
+        }).execute()
+    except Exception as exc:
+        logger.error("Error persistiendo token revocado: %s", exc)
 
 # ── TOKEN CREATION ────────────────────────────────────────────────
 def _generate_jti() -> str:
@@ -116,7 +153,7 @@ async def get_current_user(
     db = get_supabase()
     result = (
         db.table("visitadores")
-        .select("id, nombre, email, laboratorio, rol, activo")
+        .select("id, nombre, email, laboratorio, rol, activo, token_version")
         .eq("id", user_id)
         .single()
         .execute()
@@ -128,6 +165,9 @@ async def get_current_user(
     if not user.get("activo", False):
         logger.warning("Intento de acceso con cuenta desactivada: %s", user_id)
         raise HTTPException(status_code=403, detail="Cuenta desactivada")
+
+    if payload.get("ver") != user.get("token_version", 0):
+        raise HTTPException(status_code=401, detail="Token revocado")
 
     # Guardar el token raw para logout
     user["_raw_token"] = credentials.credentials
