@@ -30,7 +30,9 @@ export default function App() {
           }),
         });
       }
-    } catch {}
+    } catch {
+      // Best effort: local tokens are cleared even if backend logout fails.
+    }
     AuthService.clearTokens();
     setToken(null);
     setUser(null);

@@ -14,7 +14,7 @@ export default function CambiarPassword({ apiFetch, onBack, onLogout }) {
     { ok: newPwd.length >= 10, label: "Mínimo 10 caracteres" },
     { ok: /[A-Z]/.test(newPwd), label: "Al menos una mayúscula" },
     { ok: /[0-9]/.test(newPwd), label: "Al menos un número" },
-    { ok: /[!@#$%^&*()\-_=+\[\]{}|;:,.<>?/]/.test(newPwd), label: "Al menos un carácter especial" },
+    { ok: /[!@#$%^&*()_=+[\]{}|;:,.<>?/-]/.test(newPwd), label: "Al menos un carácter especial" },
     { ok: newPwd && confirm && newPwd === confirm, label: "Las contraseñas coinciden" },
   ];
 

@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { C, fontStack, RESULTADOS, NIVEL_INTERES, novEmoji, novLabel } from '../../constants';
-import { SectionTitle, StatCard, ChartCard, BtnAtras, CustomTooltip } from '../shared/index.jsx';
+import { StatCard, ChartCard, BtnAtras, CustomTooltip } from '../shared/index.jsx';
 
 const DIAS_LABEL = ["", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
@@ -53,7 +53,11 @@ export default function PerfilMedico({ medico, apiFetch, onBack }) {
           color: sppResults[i]?.spp >= 0.7 ? C.success : sppResults[i]?.spp >= 0.45 ? C.warn : C.danger,
         })).filter(d => d.spp !== null);
         setSppPorFranja(sppData);
-      } catch {}
+      } catch {
+        setSpp(null);
+        setHistorial([]);
+        setSppPorFranja([]);
+      }
       setLoading(false);
     };
 

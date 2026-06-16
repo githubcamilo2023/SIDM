@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { C, fontStack } from '../../constants';
-import { Input, TextArea, BtnPrimario, BtnAtras, labelStyle, sectionStyle } from '../shared/index.jsx';
+import { Input, BtnPrimario, BtnAtras, labelStyle, sectionStyle } from '../shared/index.jsx';
 
 export default function GestionMedicos({ apiFetch }) {
   const [medicos, setMedicos] = useState([]);
@@ -15,7 +15,9 @@ export default function GestionMedicos({ apiFetch }) {
     try {
       const res = await apiFetch("/medicos");
       if (res.ok) setMedicos(await res.json());
-    } catch {}
+    } catch {
+      setMedicos([]);
+    }
     setLoading(false);
   }, [apiFetch]);
 

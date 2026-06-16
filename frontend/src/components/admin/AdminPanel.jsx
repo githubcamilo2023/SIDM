@@ -21,7 +21,9 @@ export default function AdminPanel({ apiFetch }) {
     apiFetch("/admin/visitadores")
       .then(r => r.ok ? r.json() : [])
       .then(setVisitadores)
-      .catch(() => {});
+      .catch(() => {
+        setVisitadores([]);
+      });
   }, [apiFetch]);
 
   // ── Cargar datos según filtro ───────────────────────────────
@@ -39,7 +41,10 @@ export default function AdminPanel({ apiFetch }) {
       ]);
       if (resStats.ok) setStats(await resStats.json());
       if (resVisitas.ok) setVisitas(await resVisitas.json());
-    } catch {}
+    } catch {
+      setStats(null);
+      setVisitas([]);
+    }
     setLoading(false);
   }, [apiFetch, filtroVisitador]);
 
@@ -48,7 +53,9 @@ export default function AdminPanel({ apiFetch }) {
     try {
       const res = await apiFetch("/admin/stats/por-visitador");
       if (res.ok) setStatsPorRep(await res.json());
-    } catch {}
+    } catch {
+      setStatsPorRep([]);
+    }
   }, [apiFetch]);
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);

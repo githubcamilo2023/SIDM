@@ -53,7 +53,9 @@ export default function AppPrincipal({ user, onLogout, onSessionExpired }) {
   }, [onSessionExpired]);
 
   const cargarMedicos = useCallback(async () => {
-    try { const res = await apiFetch("/medicos"); if (res.ok) setMedicos(await res.json()); } catch {}
+    try { const res = await apiFetch("/medicos"); if (res.ok) setMedicos(await res.json()); } catch {
+      setMedicos([]);
+    }
   }, [apiFetch]);
 
   const cargarHistorial = useCallback(async () => {
@@ -61,7 +63,10 @@ export default function AppPrincipal({ user, onLogout, onSessionExpired }) {
       const [resH, resS] = await Promise.all([apiFetch("/visitas/historial?limite=100"), apiFetch("/visitas/stats")]);
       if (resH.ok) setHistorial(await resH.json());
       if (resS.ok) setStats(await resS.json());
-    } catch {}
+    } catch {
+      setHistorial([]);
+      setStats(null);
+    }
   }, [apiFetch]);
 
   useEffect(() => {
