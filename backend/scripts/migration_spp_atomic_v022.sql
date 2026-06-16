@@ -11,6 +11,7 @@ CREATE OR REPLACE FUNCTION incrementar_patron_spp(
 RETURNS VOID
 LANGUAGE SQL
 SECURITY DEFINER
+SET search_path = public
 AS $$
     INSERT INTO patrones (
         medico_id,
@@ -44,3 +45,21 @@ AS $$
         )::NUMERIC, 4),
         actualizado_en = NOW();
 $$;
+
+REVOKE ALL ON FUNCTION incrementar_patron_spp(
+    INTEGER,
+    INTEGER,
+    INTEGER,
+    INTEGER,
+    NUMERIC,
+    NUMERIC
+) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION incrementar_patron_spp(
+    INTEGER,
+    INTEGER,
+    INTEGER,
+    INTEGER,
+    NUMERIC,
+    NUMERIC
+) TO service_role;
