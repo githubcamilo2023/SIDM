@@ -41,7 +41,12 @@ async def add_security_headers(request: Request, call_next):
 # ── CORS ──────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=[
+    "https://sidm.vercel.app",
+    "https://sidm-git-codex-revision-sidm-githubcamilo2023s-projects.vercel.app",
+    # o para no sufrir con esto:
+    "*"
+],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],    # no wildcard
     allow_headers=["Authorization", "Content-Type"],    # no wildcard
